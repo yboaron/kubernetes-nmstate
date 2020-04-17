@@ -1,8 +1,5 @@
 package version
 
 var (
-	Version = "0.17.0"
+	Version = "0.19.0"
 )
-
-// * Force release after fixing release.sh
-// * Force release, prow has no remotes git push has to be done with repo

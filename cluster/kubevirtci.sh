@@ -1,6 +1,6 @@
 export KUBEVIRT_PROVIDER=${KUBEVIRT_PROVIDER:-'k8s-1.17'}
 
-KUBEVIRTCI_VERSION='b06adadeffcbb425c15e0388250e5211db0eae49'
+KUBEVIRTCI_VERSION='f13cfc6a1b8faaf0aa39d9e7595f0196d855ca8d'
 KUBEVIRTCI_REPO='https://github.com/kubevirt/kubevirtci.git'
 KUBEVIRTCI_PATH="${PWD}/_kubevirtci"
 

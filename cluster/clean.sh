@@ -2,16 +2,65 @@
 
 set -ex
 
-echo 'Cleaning up ...'
+function eventually {
+    timeout=15
+    interval=5
+    cmd=$@
+    echo "Checking eventually $cmd"
+    while ! $cmd; do
+        sleep $interval
+        timeout=$(( $timeout - $interval ))
+        if [ $timeout -le 0 ]; then
+            return 1
+        fi
+    done
+}
 
-kubectl=./cluster/kubectl.sh
-manifests_dir=deploy
+function clean() {
+    echo 'Cleaning up ...'
 
-$kubectl delete --ignore-not-found -f $manifests_dir/
-$kubectl delete --ignore-not-found -f $manifests_dir/crds/nmstate.io_nodenetworkconfigurationenactments_crd.yaml
-$kubectl delete --ignore-not-found -f $manifests_dir/crds/nmstate.io_nodenetworkconfigurationpolicies_crd.yaml
-$kubectl delete --ignore-not-found -f $manifests_dir/crds/nmstate.io_nodenetworkstates_crd.yaml
+    MANIFESTS_DIR=build/_output/manifests
+    kubectl=./cluster/kubectl.sh
 
-if [[ "$KUBEVIRT_PROVIDER" =~ ^(okd|ocp)-.*$ ]]; then
-    $kubectl delete --ignore-not-found -f $manifests_dir/openshift/
-fi
+    if [ ! -d $MANIFESTS_DIR ]; then
+        exit 0
+    fi
+
+    # Delete the CR only if the CRD is installed otherwise it will fail
+    if $kubectl get crds nmstate.io.nmstate; then
+        $kubectl delete --ignore-not-found -f deploy/crds/nmstate.io_v1alpha1_nmstate_cr.yaml
+    fi
+    $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/operator.yaml
+    $kubectl delete --ignore-not-found -f deploy/crds/nmstate.io_nodenetworkconfigurationenactments_crd.yaml
+    $kubectl delete --ignore-not-found -f deploy/crds/nmstate.io_nodenetworkconfigurationpolicies_crd.yaml
+    $kubectl delete --ignore-not-found -f deploy/crds/nmstate.io_nodenetworkstates_crd.yaml
+    $kubectl delete --ignore-not-found -f deploy/crds/nmstate.io_nmstates_crd.yaml
+    $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/namespace.yaml
+    $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/service_account.yaml
+    $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/role.yaml
+    $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/role_binding.yaml
+
+    if [[ "$KUBEVIRT_PROVIDER" =~ ^(okd|ocp)-.*$ ]]; then
+        $kubectl delete --ignore-not-found -f $MANIFESTS_DIR/scc.yaml
+    fi
+}
+
+# Use labels so we don't care about prefixes
+function isRemoved {
+    output=$($kubectl get $1 -n $2 -l $3 2>&1)
+    [[ ! $output =~ ".*No resources found.*" ]]
+}
+
+function isHandlerRemoved {
+    isRemoved daemonset ${HANDLER_NAMESPACE} app=kubernetes-nmstate
+}
+
+function wait_removed() {
+    if ! eventually isHandlerRemoved; then
+        echo "Handler hasn't been removed within the given timeout"
+        exit 1
+    fi
+}
+
+clean
+wait_removed

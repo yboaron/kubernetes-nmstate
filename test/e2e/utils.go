@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -22,6 +21,8 @@ import (
 	dynclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	nmstatev1alpha1 "github.com/nmstate/kubernetes-nmstate/pkg/apis/nmstate/v1alpha1"
+	"github.com/nmstate/kubernetes-nmstate/test/cmd"
+	"github.com/nmstate/kubernetes-nmstate/test/environment"
 	runner "github.com/nmstate/kubernetes-nmstate/test/runner"
 )
 
@@ -80,7 +81,8 @@ func setDesiredStateWithPolicyAndNodeSelector(name string, desiredState nmstatev
 }
 
 func setDesiredStateWithPolicy(name string, desiredState nmstatev1alpha1.State) {
-	setDesiredStateWithPolicyAndNodeSelector(name, desiredState, map[string]string{})
+	runAtWorkers := map[string]string{"node-role.kubernetes.io/worker": ""}
+	setDesiredStateWithPolicyAndNodeSelector(name, desiredState, runAtWorkers)
 }
 
 func updateDesiredState(desiredState nmstatev1alpha1.State) {
@@ -174,9 +176,10 @@ func deletePolicy(name string) {
 
 func restartNode(node string) error {
 	By(fmt.Sprintf("Restarting node %s", node))
-	// Sync and reboot in background another way command can stuck
-	_, err := runner.RunAtNode(node, "/usr/bin/nohup /usr/bin/bash -c '/usr/bin/sync && sudo /usr/sbin/reboot -nf' > /dev/null 2>&1 &")
-	Expect(err).ToNot(HaveOccurred())
+	// Use halt so reboot command does not get stuck also
+	// this command always fail since connection is closed
+	// so let's not check err
+	runner.RunAtNode(node, "sudo", "halt", "--reboot")
 	By(fmt.Sprintf("Waiting till node %s is rebooted", node))
 	// It will wait till uptime -p will return up that means that node was currently rebooted and is 0 min up
 	Eventually(func() string {
@@ -304,9 +307,7 @@ func getVLANFlagsEventually(node string, connection string, vlan int) AsyncAsser
 			// There is a bug [1] at centos8 and output is and invalid json
 			// so it parses the non json output
 			// [1] https://bugs.centos.org/view.php?id=16533
-			cmd := exec.Command("test/e2e/get-bridge-vlans-flags-el8.sh", node, connection, strconv.Itoa(vlan))
-			output, err := cmd.Output()
-			GinkgoWriter.Write([]byte(fmt.Sprintf("%s -> output: %s\n", cmd.Path, output)))
+			output, err := cmd.Run("test/e2e/get-bridge-vlans-flags-el8.sh", false, node, connection, strconv.Itoa(vlan))
 			Expect(err).ToNot(HaveOccurred())
 			return strings.Split(string(output), " ")
 		} else {
@@ -344,9 +345,7 @@ func hasVlans(node string, connection string, minVlan int, maxVlan int) AsyncAss
 			// There is a bug [1] at centos8 and output is and invalid json
 			// so it parses the non json output
 			// [1] https://bugs.centos.org/view.php?id=16533
-			cmd := exec.Command("test/e2e/check-bridge-has-vlans-el8.sh", node, connection, strconv.Itoa(minVlan), strconv.Itoa(maxVlan))
-			output, err := cmd.Output()
-			GinkgoWriter.Write([]byte(fmt.Sprintf("%s -> output: %s\n", cmd.Path, output)))
+			_, err := cmd.Run("test/e2e/check-bridge-has-vlans-el8.sh", false, node, connection, strconv.Itoa(minVlan), strconv.Itoa(maxVlan))
 			if err != nil {
 				return err
 			}
@@ -457,4 +456,16 @@ func defaultRouteNextHopInterface(node string) AsyncAssertion {
 func vlan(node string, iface string) string {
 	vlanFilter := fmt.Sprintf("interfaces.#(name==\"%s\").vlan.id", iface)
 	return gjson.ParseBytes(currentStateJSON(node)).Get(vlanFilter).String()
+}
+
+func kubectlAndCheck(command ...string) {
+	out, err := cmd.Kubectl(command...)
+	Expect(err).ShouldNot(HaveOccurred(), out)
+}
+
+func skipIfNotKubernetes() {
+	provider := environment.GetVarWithDefault("KUBEVIRT_PROVIDER", "k8s")
+	if !strings.Contains(provider, "k8s") {
+		Skip("Tutorials use interface naming that is available only on Kubernetes providers")
+	}
 }
