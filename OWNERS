@@ -10,5 +10,6 @@ reviewers:
   - tsorya
 
 # Bugzilla info;
-component: Installer
-subcomponent: OpenShift on Bare Metal IPI
+component: Networking
+subcomponent: kubernetes-nmstate-operator
+subcomponent: kubernetes-nmstate
