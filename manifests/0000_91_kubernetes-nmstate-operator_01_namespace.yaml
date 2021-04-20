@@ -3,6 +3,6 @@ kind: Namespace
 metadata:
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
-  name: {{ .OperatorNamespace }}
+  name: nmstate
   labels:
-    name: {{ .OperatorNamespace }}
+    name: nmstate

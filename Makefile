@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
 IMAGE_REGISTRY ?= quay.io
-IMAGE_REPO ?= nmstate
+IMAGE_REPO ?= yboaron
 NAMESPACE ?= nmstate
 
 HANDLER_IMAGE_NAME ?= kubernetes-nmstate-handler
@@ -120,6 +120,24 @@ generate: gen-k8s gen-crds gen-rbac
 
 manifests: $(GO)
 	$(GO) run hack/render-manifests.go -handler-prefix=$(HANDLER_PREFIX) -handler-namespace=$(HANDLER_NAMESPACE) -operator-namespace=$(OPERATOR_NAMESPACE) -handler-image=$(HANDLER_IMAGE) -operator-image=$(OPERATOR_IMAGE) -handler-pull-policy=$(HANDLER_PULL_POLICY) -operator-pull-policy=$(OPERATOR_PULL_POLICY) -input-dir=deploy/ -output-dir=$(MANIFESTS_DIR)
+
+RBAC_LIST = role_binding.yaml \
+            role.yaml 
+
+manifests_cvo: manifests generate
+	# rename/join the output files into the files we expect
+	mv $(MANIFESTS_DIR)/namespace.yaml manifests/0000_91_kubernetes-nmstate-operator_01_namespace.yaml
+	mv $(MANIFESTS_DIR)/service_account.yaml manifests/0000_91_kubernetes-nmstate-operator_02_serviceaccount.yaml
+	echo '---' >> manifests/0000_91_kubernetes-nmstate-operator_02_serviceaccount.yaml
+	cat $(MANIFESTS_DIR)/scc.yaml >> manifests/0000_91_kubernetes-nmstate-operator_02_serviceaccount.yaml	
+	mv deploy/crds/nmstate.io_nmstates.yaml manifests/0000_91_kubernetes-nmstate-operator_03_crd.yaml
+	mv $(MANIFESTS_DIR)/operator.yaml manifests/0000_91_kubernetes-nmstate-operator_04_deployment.yaml
+	rm -f manifests/0000_91_kubernetes-nmstate-operator_05_rbac.yaml 
+
+	for rbac in $(RBAC_LIST) ; do \
+	cat $(MANIFESTS_DIR)/$${rbac} >> manifests/0000_91_kubernetes-nmstate-operator_05_rbac.yaml ;\
+	echo '---' >> manifests/0000_91_kubernetes-nmstate-operator_05_rbac.yaml ;\
+	done
 
 manager: $(GO)
 	$(GO) build -o $(BIN_DIR)/manager main.go

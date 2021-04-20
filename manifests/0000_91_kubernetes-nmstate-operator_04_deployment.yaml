@@ -5,7 +5,7 @@ metadata:
   annotations:
     include.release.openshift.io/self-managed-high-availability: "true"
   name: nmstate-operator
-  namespace: {{ .OperatorNamespace }}
+  namespace: nmstate
   labels:
     app: kubernetes-nmstate-operator
 spec:
@@ -31,8 +31,8 @@ spec:
           args:
           - --v=production
           # Replace this with the built image name
-          image: {{ .OperatorImage }}
-          imagePullPolicy: {{ .OperatorPullPolicy }}
+          image: quay.io/yboaron/kubernetes-nmstate-operator:latest
+          imagePullPolicy: Always
           command:
           - manager
           env:
@@ -47,8 +47,8 @@ spec:
             - name: RUN_OPERATOR
               value: ""
             - name: HANDLER_IMAGE
-              value: {{ .HandlerImage }}
+              value: quay.io/yboaron/kubernetes-nmstate-handler:latest
             - name: HANDLER_IMAGE_PULL_POLICY
-              value: {{ .HandlerPullPolicy }}
+              value: Always
             - name: HANDLER_NAMESPACE
-              value: {{ .HandlerNamespace }}
+              value: nmstate

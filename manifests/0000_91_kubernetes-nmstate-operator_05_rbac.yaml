@@ -1,0 +1,127 @@
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  annotations:
+    include.release.openshift.io/self-managed-high-availability: "true"
+  name: nmstate-operator
+  namespace: nmstate
+subjects:
+- kind: ServiceAccount
+  name: nmstate-operator
+  namespace: nmstate
+roleRef:
+  kind: Role
+  name: nmstate-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  annotations:
+    include.release.openshift.io/self-managed-high-availability: "true"
+  name: nmstate-operator
+  namespace: nmstate
+subjects:
+- kind: ServiceAccount
+  name: nmstate-operator
+  namespace: nmstate
+roleRef:
+  kind: ClusterRole
+  name: nmstate-operator
+  apiGroup: rbac.authorization.k8s.io
+---
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    include.release.openshift.io/self-managed-high-availability: "true"
+  creationTimestamp: null
+  name: nmstate-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - namespaces
+  - serviceaccounts
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - admissionregistration.k8s.io
+  resources:
+  - mutatingwebhookconfigurations
+  verbs:
+  - '*'
+- apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - nmstate.io
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterrolebindings
+  - clusterroles
+  - rolebindings
+  - roles
+  verbs:
+  - '*'
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  annotations:
+    include.release.openshift.io/self-managed-high-availability: "true"
+  creationTimestamp: null
+  name: nmstate-operator
+  namespace: 'nmstate'
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  - endpoints
+  - events
+  - persistentvolumeclaims
+  - pods
+  - secrets
+  - services
+  verbs:
+  - '*'
+- apiGroups:
+  - apps
+  resources:
+  - daemonsets
+  - deployments
+  - replicasets
+  - statefulsets
+  verbs:
+  - '*'
+- apiGroups:
+  - policy
+  resources:
+  - poddisruptionbudgets
+  verbs:
+  - '*'
+---
